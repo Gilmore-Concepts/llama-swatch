@@ -3,18 +3,27 @@
 //! One unauthenticated GET to the GitHub API's "latest release" endpoint, only when the user has
 //! the setting on. Nothing about the user or their llama-swap is sent. Only the release tag is
 //! read from the response; the page that gets opened is built here from that tag, never taken
-//! from the response.
+//! from the response. GitHub answers a moved or renamed repo with a redirect on its own API host,
+//! so those are followed; a redirect anywhere else is treated as an error.
 
 use std::time::Duration;
 
-use reqwest::{Client, StatusCode};
+use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 
 pub const GITHUB_API: &str = "https://api.github.com";
-pub const REPO: &str = "anphonic/llama-swatch";
+pub const REPO: &str = "Gilmore-Concepts/llama-swatch";
 const TIMEOUT: Duration = Duration::from_secs(10);
 /// A release response is a few KB; anything far larger is not one.
 const MAX_BODY: usize = 1024 * 1024;
+/// A repo that moved takes one hop; this leaves room for a later move without allowing a loop.
+const MAX_REDIRECTS: usize = 3;
+const REDIRECT_HOST: &str = "api.github.com";
+
+/// Whether to follow a redirect to `next`, after `hops` redirects so far.
+fn redirect_allowed(next: &Url, hops: usize) -> bool {
+    hops < MAX_REDIRECTS && next.scheme() == "https" && next.host_str() == Some(REDIRECT_HOST) && next.port().is_none()
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -64,7 +73,14 @@ pub fn newer(latest_tag: &str, current: &str) -> Option<UpdateInfo> {
 pub async fn check(api_base: &str, current: &str) -> Result<Option<UpdateInfo>, String> {
     let http = Client::builder()
         .timeout(TIMEOUT)
-        .redirect(reqwest::redirect::Policy::none())
+        .redirect(reqwest::redirect::Policy::custom(|attempt| {
+            // `previous` holds the first request too, so it is one longer than the redirects taken.
+            if redirect_allowed(attempt.url(), attempt.previous().len() - 1) {
+                attempt.follow()
+            } else {
+                attempt.stop()
+            }
+        }))
         .user_agent(concat!("llama-swatch/", env!("CARGO_PKG_VERSION")))
         .build()
         .map_err(|e| e.without_url().to_string())?;
@@ -98,7 +114,7 @@ mod tests {
     use wiremock::matchers::{header, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    const LATEST: &str = "/repos/anphonic/llama-swatch/releases/latest";
+    const LATEST: &str = "/repos/Gilmore-Concepts/llama-swatch/releases/latest";
 
     #[test]
     fn versions_are_strict() {
@@ -125,9 +141,27 @@ mod tests {
 
     #[test]
     fn release_url_is_built_from_a_valid_tag_only() {
-        assert_eq!(release_url("v0.2.0").as_deref(), Some("https://github.com/anphonic/llama-swatch/releases/tag/v0.2.0"));
+        assert_eq!(release_url("v0.2.0").as_deref(), Some("https://github.com/Gilmore-Concepts/llama-swatch/releases/tag/v0.2.0"));
         for bad in ["v0.2.0/../../evil", "https://evil.example", "v0.2", "", "v0.2.0?x=1"] {
             assert_eq!(release_url(bad), None, "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn redirects_stay_on_the_github_api() {
+        let ok = |s: &str, hops| redirect_allowed(&Url::parse(s).unwrap(), hops);
+        assert!(ok("https://api.github.com/repositories/1406442502/releases/latest", 0));
+        assert!(ok("https://api.github.com/repos/new-owner/llama-swatch/releases/latest", MAX_REDIRECTS - 1));
+        assert!(!ok("https://api.github.com/repos/x/y/releases/latest", MAX_REDIRECTS), "hop limit");
+        for bad in [
+            "http://api.github.com/repos/x/y",
+            "https://github.com/x/y",
+            "https://evil.example/repos/x/y",
+            "https://api.github.com.evil.example/repos/x/y",
+            "https://api.github.com@evil.example/repos/x/y",
+            "https://api.github.com:8443/repos/x/y",
+        ] {
+            assert!(!ok(bad, 0), "{bad}");
         }
     }
 
@@ -189,7 +223,7 @@ mod tests {
             .respond_with(ResponseTemplate::new(302).insert_header("Location", format!("{}{LATEST}", target.uri())))
             .mount(&redirect)
             .await;
-        assert!(check(&redirect.uri(), "0.1.0").await.is_err(), "redirects are not followed");
+        assert!(check(&redirect.uri(), "0.1.0").await.is_err(), "redirects off the GitHub API are not followed");
         target.verify().await;
 
         let junk = MockServer::start().await;

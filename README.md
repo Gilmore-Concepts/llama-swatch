@@ -2,6 +2,8 @@
   <img src="docs/images/banner.png" alt="Llama Swatch: a desktop monitor for llama-swap" width="800">
 </h1>
 
+> **Moved:** this repo was `anphonic/llama-swatch` until November 2026. Old links redirect here. Copies older than v0.4.4 can't find updates after the move, so download the [latest release](https://github.com/Gilmore-Concepts/llama-swatch/releases/latest) once by hand.
+
 A desktop monitor for [llama-swap](https://github.com/mostlygeek/llama-swap).
 It shows what your llama-swap instance is doing: whether it's reachable, which models
 are loaded, which are busy or stuck, and a summary of throughput.
