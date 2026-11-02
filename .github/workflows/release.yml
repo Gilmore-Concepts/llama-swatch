@@ -38,6 +38,8 @@ jobs:
         with:
           workspaces: "./src-tauri -> target"
       - run: npm ci
+      - name: Check app, installer and package versions agree
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib version_is_semver_and_matches_tauri_conf_and_package_json
       - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
