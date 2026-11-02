@@ -22,7 +22,7 @@ const REDIRECT_HOST: &str = "api.github.com";
 
 /// Whether to follow a redirect to `next`, after `hops` redirects so far.
 fn redirect_allowed(next: &Url, hops: usize) -> bool {
-    hops <= MAX_REDIRECTS && next.scheme() == "https" && next.host_str() == Some(REDIRECT_HOST) && next.port().is_none()
+    hops < MAX_REDIRECTS && next.scheme() == "https" && next.host_str() == Some(REDIRECT_HOST) && next.port().is_none()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -151,8 +151,8 @@ mod tests {
     fn redirects_stay_on_the_github_api() {
         let ok = |s: &str, hops| redirect_allowed(&Url::parse(s).unwrap(), hops);
         assert!(ok("https://api.github.com/repositories/1406442502/releases/latest", 0));
-        assert!(ok("https://api.github.com/repos/new-owner/llama-swatch/releases/latest", MAX_REDIRECTS));
-        assert!(!ok("https://api.github.com/repos/x/y/releases/latest", MAX_REDIRECTS + 1), "hop limit");
+        assert!(ok("https://api.github.com/repos/new-owner/llama-swatch/releases/latest", MAX_REDIRECTS - 1));
+        assert!(!ok("https://api.github.com/repos/x/y/releases/latest", MAX_REDIRECTS), "hop limit");
         for bad in [
             "http://api.github.com/repos/x/y",
             "https://github.com/x/y",
