@@ -111,7 +111,7 @@ async function showMini(view: SettingsView) {
 
 async function showDashboard(view: SettingsView) {
   dashboard?.destroy();
-  const current = createDashboard(view.settings, openSettings);
+  const current = createDashboard(view, openSettings);
   dashboard = current;
   root.replaceChildren(current.element);
   // null = upgraded from a version without the setting: check, and the dashboard says so once.

@@ -200,6 +200,9 @@ address and the app version (in the User-Agent); nothing about your llama-swap i
 Untick it to turn the check off. If you upgraded from a version without this setting, the
 check is on and the window says so once, with buttons to keep it on or turn it off.
 
+The dashboard and Settings footers show **Llama Swatch v…**, the running app version
+used by the update check. The dashboard header's **llama-swap** version belongs to the server.
+
 Thresholds (slow-load warning, no-first-byte timeout, and so on) are under
 **Stall detection** in settings. The no-first-byte timeout marks a model Stalled only when a
 reply has started but sent nothing; a request with no reply yet just gets the `reply slow`
@@ -224,6 +227,10 @@ installers, publishes them as a release once all builds succeed (a tag containin
 marked pre-release), and attaches `SHA256SUMS.txt`.
 
 To build installers locally, run `npm run tauri build`.
+
+Before a release, update the version in `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`
+and `package.json` together (including their lockfiles). CI and release builds check
+that these three versions agree before installers can be published.
 
 ## License
 

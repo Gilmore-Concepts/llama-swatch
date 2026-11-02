@@ -1,7 +1,7 @@
 import { h, svg } from "../dom";
 import { formatAgo, formatBytes, formatCount, formatDuration } from "../format";
 import { countLoaded, isLoaded, reloadCandidate } from "../models";
-import type { Connection, EventStream, ModelCard, ModelState, Settings, Snapshot, UpdateInfo } from "../types";
+import type { Connection, EventStream, ModelCard, ModelState, Settings, SettingsView, Snapshot, UpdateInfo } from "../types";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { loadModel, openRelease, setAlwaysOnTopSetting, setCheckForUpdatesSetting, unloadModel } from "../api";
 import { renderHistogram } from "./components/histogram";
@@ -331,7 +331,8 @@ export function launchCheckAnswer(): boolean | null {
   return checkAnswer;
 }
 
-export function createDashboard(settings: Settings, onOpenSettings: () => void): Dashboard {
+export function createDashboard(settingsView: SettingsView, onOpenSettings: () => void): Dashboard {
+  const { settings, appVersion } = settingsView;
   const dot = h("span", { class: "dot" });
   const statusText = h("span", { class: "status-text" }, "Connecting…");
   const live = h("span", { class: "badge" });
@@ -479,7 +480,13 @@ export function createDashboard(settings: Settings, onOpenSettings: () => void):
   const overlayObserver = new ResizeObserver(syncOverlay);
   overlayObserver.observe(notices);
   window.addEventListener("resize", syncOverlay);
-  const element = h("main", { class: "dashboard" }, header, modelsView, history.element, notices);
+  const element = h(
+    "main",
+    { class: "dashboard" },
+    header, modelsView, history.element,
+    h("p", { class: "muted app-version" }, `Llama Swatch v${appVersion}`),
+    notices,
+  );
 
   const cards = new Map<string, CardView>();
   let last: Snapshot | null = null;

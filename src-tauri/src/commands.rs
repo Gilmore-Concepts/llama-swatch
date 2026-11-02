@@ -415,8 +415,11 @@ mod tests {
 
     #[test]
     fn settings_view_reports_this_builds_version() {
-        let v = serde_json::to_value(SettingsView::new(false, Settings::default(), false)).unwrap();
-        assert_eq!(v["appVersion"], env!("CARGO_PKG_VERSION"));
+        for configured in [false, true] {
+            let v = serde_json::to_value(SettingsView::new(configured, Settings::default(), false)).unwrap();
+            assert_eq!(v["appVersion"], env!("CARGO_PKG_VERSION"));
+            assert!(update::parse_version(v["appVersion"].as_str().unwrap()).is_some());
+        }
     }
 
     /// The footer shows Cargo's version; the installer and the npm package carry their own.
